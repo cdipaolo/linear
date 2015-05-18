@@ -71,7 +71,7 @@ func regression(xData [][]float64, y []float64, alpha float64) ([]float64, float
 	iterations := 0
 	for abs(jNew-j) > 1e-6 && iterations < 100000 {
 		// check if diverging
-		if iterations > 100 && jNew > 1e6 {
+		if jNew > 1e6 {
 			fmt.Printf("\nDIFFERENCE: %v\n", jNew)
 			return nil, 0, fmt.Errorf("Error: regression with learning rate <α = %v> diverging", alpha)
 		}
