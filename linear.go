@@ -43,6 +43,7 @@ func J(theta []float64, xData [][]float64, y []float64) float64 {
 	return cost / float64(2*len(xData))
 }
 
+// dj is the partial derivative of J(θ) with respect to θ_j
 func dj(j int64, theta []float64, xData [][]float64, y []float64) float64 {
 	var cost float64
 	if j == 0 {
@@ -58,7 +59,10 @@ func dj(j int64, theta []float64, xData [][]float64, y []float64) float64 {
 	return cost / float64(len(xData))
 }
 
-func regression(xData [][]float64, y []float64, alpha float64) ([]float64, float64) {
+// regression takes in the matrix of feature data, a vector of result data,
+//     and the learning rate alpha and returns the parameter vector θ as well
+//     as the final cost vector J(θ)
+func regression(xData [][]float64, y []float64, alpha float64) ([]float64, float64, error) {
 	theta := make([]float64, len(xData[0])+1)
 
 	j := J(theta, xData, y)
@@ -66,6 +70,12 @@ func regression(xData [][]float64, y []float64, alpha float64) ([]float64, float
 
 	iterations := 0
 	for abs(jNew-j) > 1e-6 && iterations < 100000 {
+		// check if diverging
+		if iterations > 100 && jNew > 1e6 {
+			fmt.Printf("\nDIFFERENCE: %v\n", jNew)
+			return nil, 0, fmt.Errorf("Error: regression with learning rate <α = %v> diverging", alpha)
+		}
+
 		thetaNew := make([]float64, len(theta))
 		for i := range theta {
 			thetaNew[i] = theta[i] - alpha*dj(int64(i), theta, xData, y)
@@ -78,13 +88,16 @@ func regression(xData [][]float64, y []float64, alpha float64) ([]float64, float
 		iterations++
 	}
 
-	return theta, jNew
+	return theta, jNew, nil
 }
 
 func main() {
+	// get the CSV filepath from the 'f' flag
+	// eg. `linear -f='~/data.csv'
 	path := flag.String("f", "/Users/cdipaolo/Data/LSD_Math/lsd.csv", "CSV filepath for data to be linearly regressed")
-	fmt.Printf("CSV File Path: %v", *path)
+	fmt.Printf("CSV File Path: %v\n", *path)
 
+	// open the csv file
 	dataFile, err := os.Open(*path)
 	if err != nil {
 		panic(fmt.Sprintf("Error opening file: %v", err))
@@ -95,6 +108,7 @@ func main() {
 	var data [][]float64
 	var y []float64
 
+	// read data from csv
 	for {
 		record, err := reader.Read()
 
@@ -105,7 +119,6 @@ func main() {
 			fmt.Printf("Error reading CSV file: %v", err)
 			return
 		}
-		fmt.Printf("Record: %v", record)
 		var row []float64
 
 		// convert all row values to flaot64's
@@ -126,18 +139,24 @@ func main() {
 		data = append(data, row)
 	}
 
-	// print converted data
+	// print converted feature data and parameter data
 	fmt.Printf("Data: %v\ny: %v", data, y)
 
-	// regress data
+	// regress data at multiple alpha values
 	var theta []float64
 	j := float64(1e6)
 
 	alpha := float64(10)
 	for i := 0; i < 10; i++ {
-		thetaNew, jNew := regression(data, y, alpha)
-		fmt.Printf("\n\nj(θ) = %v\nTheta with <α = %v>: %v", jNew, alpha, thetaNew)
+		thetaNew, jNew, err := regression(data, y, alpha)
 		alpha /= 3
+
+		if err != nil {
+			fmt.Printf("\nError regressing data:\n\t%v\n", err)
+			continue
+		}
+
+		fmt.Printf("\n\nj(θ) = %v\nTheta with <α = %v>: %v", jNew, alpha, thetaNew)
 
 		// if new j is less, set current best hypothesis
 		if jNew < j {
@@ -146,5 +165,6 @@ func main() {
 		}
 	}
 
+	// print final hypothesis
 	fmt.Printf("\n\nFinal theta with j(θ) = %v\n%v\n", j, theta)
 }
